@@ -1,7 +1,7 @@
-const API_BASE_URL = 'https://hn.algolia.com/api/v1'
-const PAGE_SIZE = 12
+const apiBaseUrl = 'https://hn.algolia.com/api/v1'
+const pageSize = 12
 
-const TAG_COLORS = {
+const tagColors = {
   ai: ['#4527a0', '#283593'],
   technology: ['#1565c0', '#00838f'],
   business: ['#2e7d32', '#558b2f'],
@@ -12,8 +12,8 @@ const TAG_COLORS = {
   general: ['#5d4037', '#455a64']
 }
 
-function buildUrl (path, params = {}) {
-  const normalizedBase = API_BASE_URL.endsWith('/') ? API_BASE_URL : `${API_BASE_URL}/`
+function buildUrl(path, params = {}) {
+  const normalizedBase = apiBaseUrl.endsWith('/') ? apiBaseUrl : `${apiBaseUrl}/`
   const normalizedPath = path.startsWith('/') ? path.slice(1) : path
   const url = new URL(normalizedPath, normalizedBase)
 
@@ -26,7 +26,7 @@ function buildUrl (path, params = {}) {
   return url.toString()
 }
 
-async function fetchJson (path, params) {
+async function fetchJson(path, params) {
   const response = await fetch(buildUrl(path, params))
 
   if (!response.ok) {
@@ -36,7 +36,7 @@ async function fetchJson (path, params) {
   return response.json()
 }
 
-function decodeHtmlEntities (text) {
+function decodeHtmlEntities(text) {
   return text
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
@@ -47,7 +47,7 @@ function decodeHtmlEntities (text) {
     .replace(/&nbsp;/gi, ' ')
 }
 
-function cleanText (value) {
+function cleanText(value) {
   if (!value) return ''
 
   return decodeHtmlEntities(
@@ -62,7 +62,7 @@ function cleanText (value) {
   )
 }
 
-function getTagFromText (title, description, sourceTags) {
+function getTagFromText(title, description, sourceTags) {
   const haystack = `${title} ${description} ${(sourceTags || []).join(' ')}`.toLowerCase()
 
   if (/ai|artificial intelligence|llm|ml|machine learning|gpt/.test(haystack)) return 'ai'
@@ -76,8 +76,8 @@ function getTagFromText (title, description, sourceTags) {
   return 'general'
 }
 
-function getTagThumbnail (tag) {
-  const colors = TAG_COLORS[tag] || TAG_COLORS.general
+function getTagThumbnail(tag) {
+  const colors = tagColors[tag] || tagColors.general
   const label = (tag || 'general').toUpperCase()
   const svg = [
     "<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='675' viewBox='0 0 1200 675'>",
@@ -96,7 +96,7 @@ function getTagThumbnail (tag) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
 }
 
-function mapHitToArticle (hit) {
+function mapHitToArticle(hit) {
   const title = cleanText(hit.title || hit.story_title || 'No title')
   const description = cleanText(hit.story_text || hit.comment_text || '')
   const tag = getTagFromText(title, description, hit._tags)
@@ -114,7 +114,7 @@ function mapHitToArticle (hit) {
   }
 }
 
-function mapItemToArticle (item) {
+function mapItemToArticle(item) {
   const title = cleanText(item.title || 'No title')
   const description = cleanText(item.text || '')
   const tag = getTagFromText(title, description, item.children ? ['discussion'] : [])
@@ -133,14 +133,14 @@ function mapItemToArticle (item) {
 }
 
 const newsService = {
-  async search (query = 'news', page = 0, options = {}) {
+  async search(query = 'news', page = 0, options = {}) {
     const sortBy = options.sortBy || 'latest'
     const endpoint = sortBy === 'relevance' ? '/search' : '/search_by_date'
     const data = await fetchJson(endpoint, {
       query,
       tags: 'story',
       page,
-      hitsPerPage: PAGE_SIZE
+      hitsPerPage: pageSize
     })
 
     return {
@@ -149,7 +149,7 @@ const newsService = {
     }
   },
 
-  async getItem (id) {
+  async getItem(id) {
     const data = await fetchJson(`/items/${id}`)
     return mapItemToArticle(data)
   }

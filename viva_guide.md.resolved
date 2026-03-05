@@ -1,0 +1,1002 @@
+# 📰 Balfour Beatty News — Complete Viva Guide
+
+> Every file · Every line · Every concept · Every "why" explained
+
+---
+
+## 1. What is this application?
+
+A **React-based news reader** that:
+- Fetches live news articles from the **Hacker News Algolia API** (free, no key needed)
+- Lets you **search**, **filter by tags**, and **sort** articles
+- Has a **dark/light theme toggle**
+- Shows a **detail page** for each article
+- Uses **infinite scroll** (loads more as you scroll down)
+- Has **no backend** — it's a pure front-end application
+
+---
+
+## 2. Tech Stack — And WHY Each Was Chosen
+
+| Technology | Why used |
+|---|---|
+| **React 18** | The most popular UI library. Component-based, reusable, reactive |
+| **Vite** | Build tool. Faster than Webpack/CRA. Hot reload in milliseconds |
+| **MUI (Material UI) v5** | Google's Material Design component library. Saves time building buttons, drawers, cards from scratch |
+| **@emotion/react, @emotion/styled** | MUI uses these internally for CSS-in-JS styling. Required peer dependency |
+| **react-router-dom v6** | Industry-standard routing library for React SPAs (Single Page Apps) |
+| **Hacker News Algolia API** | Free public API. No API key. Returns real tech news |
+| **ESLint** | Finds code errors and enforces code style rules |
+| **Prettier** | Formats code automatically (spacing, quotes, indentation) |
+
+---
+
+## 3. Folder Structure — And WHY This Layout
+
+```
+news/
+├── index.html          ← The ONLY HTML file (SPA = one page)
+├── vite.config.js      ← Build tool configuration
+├── package.json        ← Project manifest (dependencies, scripts)
+├── .prettierrc         ← Code formatter rules
+├── .eslintrc.cjs       ← Linter rules
+└── src/
+    ├── main.js         ← Entry point. Mounts React into HTML
+    ├── App.js          ← Root component. Holds all global state
+    ├── theme.js        ← MUI theme factory (light/dark)
+    ├── styles.css      ← Global CSS resets
+    ├── components/     ← Reusable UI pieces (AppBar, Card, Drawer, Toggle)
+    ├── features/       ← Feature-specific logic (news list, pagination)
+    ├── routes/         ← Page-level components (Home, ArticleDetails)
+    ├── services/       ← API layer — all fetch calls live here
+    └── utils/          ← Pure helper functions (date formatting)
+```
+
+**Why this structure?**
+- `components/` = generic UI blocks reused across pages
+- `features/` = business-logic-heavy components tied to one feature
+- `routes/` = page components, one per URL path
+- `services/` = all network calls in one place (separation of concerns)
+- `utils/` = stateless, pure helper functions
+
+---
+
+## 4. Core JavaScript / React Concepts Used
+
+### `const` — What is it?
+`const` declares a variable that **cannot be reassigned**.
+```js
+const PAGE_SIZE = 12   // This number can NEVER become 15 later
+const theme = useMemo(() => getTheme(mode), [mode])
+// theme itself can't be reassigned, but the OBJECT inside can change
+```
+Use `const` always unless you need to reassign → use `let`.
+
+---
+
+### `function` vs arrow function [() =>](file:///d:/BB/news/src/App.js#9-65)
+Both define functions. Arrow functions are shorter and inherit `this` from parent scope.
+```js
+// Regular
+function handleChange(e) { setValue(e.target.value) }
+
+// Arrow (same thing, shorter)
+const handleChange = (e) => { setValue(e.target.value) }
+```
+
+---
+
+### `props` — What are they?
+Props = **properties** passed from a parent component to a child component.
+Like function arguments, but for components.
+```js
+// Parent passes props:
+<ArticleCard article={article} featured={true} />
+
+// Child receives them:
+export default function ArticleCard(props) {
+  const article = props.article   // the article object
+  const featured = props.featured // true or false
+}
+```
+
+---
+
+### `params` — What are they?
+In `react-router-dom`, **URL params** are dynamic parts of the URL.
+```js
+// Route definition:
+<Route path='/article/:id' element={<ArticleDetails />} />
+
+// In ArticleDetails:
+const { id } = useParams()
+// If URL is /article/12345, then id = "12345"
+```
+The `:id` is a **wildcard** that captures whatever is in that position.
+
+---
+
+### `useState` — State Management
+State = **data that belongs to a component** and when it changes, React re-renders the component.
+```js
+const [mode, setMode] = useState('light')
+// mode = current value: 'light'
+// setMode = the function to change it
+// 'light' = the initial value
+```
+Calling `setMode('dark')` makes React re-render with the new value.
+
+---
+
+### `useEffect` — Side Effects
+Used to run code **outside of rendering**: fetching data, setting up timers, event listeners.
+```js
+React.useEffect(() => {
+  // This code runs AFTER the component renders
+  loadNews()
+
+  return () => {
+    // Cleanup runs when component UNMOUNTS or before next effect
+    isActive = false
+  }
+}, [query, page, sortBy])  // Dependency array: re-run when these change
+```
+
+---
+
+### `useMemo` — Performance Optimization
+Memoizes (caches) an expensive calculated value. Only recalculates when dependencies change.
+```js
+const theme = useMemo(() => getTheme(mode), [mode])
+// getTheme() only runs again when `mode` changes
+// Without useMemo, it would run on EVERY render
+```
+
+---
+
+### `useRef` — Mutable Reference
+Unlike state, changing a `ref` does **not** cause a re-render. Used for:
+1. Referencing a DOM element
+2. Storing a mutable value (like a timer ID)
+```js
+const timeoutRef = React.useRef(null)
+// Later:
+timeoutRef.current = setTimeout(...)
+clearTimeout(timeoutRef.current)
+```
+
+---
+
+### `useNavigate` — Programmatic Navigation
+```js
+const navigate = useNavigate()
+navigate(`/article/${article.id}`, { state: article })
+// Goes to /article/12345 and passes article data as location.state
+```
+
+---
+
+### `useLocation` — Read URL State
+```js
+const location = useLocation()
+const [article, setArticle] = useState(location.state || null)
+// Reads the state object passed by navigate()
+```
+This is how [ArticleDetails](file:///d:/BB/news/src/routes/ArticleDetails.js#7-124) shows article data **instantly** without waiting for an API call — the data was already passed via navigation state.
+
+---
+
+## 5. File-by-File Explanation
+
+---
+
+### [index.html](file:///d:/BB/news/index.html) — The Shell
+```html
+<div id="root"></div>
+<script type="module" src="/src/main.js"></script>
+```
+- The `div#root` is where React mounts the entire app
+- `type="module"` = modern ES module — allows `import/export`
+- Vite serves [main.js](file:///d:/BB/news/src/main.js) as the entry point
+
+**Viva Q: Why only one HTML file?**
+Because this is a **Single Page Application (SPA)**. React handles all routing in JavaScript. The browser never actually navigates to a new page — React swaps out components instead.
+
+---
+
+### [vite.config.js](file:///d:/BB/news/vite.config.js) — Build Tool Config
+```js
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { transform } from 'esbuild'
+
+export default defineConfig({
+  plugins: [
+    {
+      name: 'jsx-in-js',
+      async transform(code, id) {
+        if (id.endsWith('.js') && code.includes('</')) {
+          const result = await transform(code, {
+            loader: 'jsx',
+            jsx: 'automatic',
+            jsxImportSource: 'react'
+          })
+          return result.code
+        }
+      }
+    },
+    react()
+  ],
+  optimizeDeps: {
+    esbuildOptions: {
+      loader: { '.js': 'jsx' }
+    }
+  }
+})
+```
+**Why this exists:**  
+Normal Vite only processes `.jsx` files as JSX. This project uses [.js](file:///d:/BB/news/src/App.js) files with JSX inside them. The custom plugin uses `esbuild`'s [transform()](file:///d:/BB/news/vite.config.js#9-19) to convert [.js](file:///d:/BB/news/src/App.js) files that contain JSX (`</` pattern) into valid JavaScript.
+
+**`esbuild`** is an extremely fast JavaScript bundler/transpiler (written in Go). Vite uses it internally.
+
+**`jsx: 'automatic'`** means `import React from 'react'` is NOT needed in every file — React's new JSX transform handles it automatically since React 17.
+
+---
+
+### [package.json](file:///d:/BB/news/package.json) — Project Manifest
+```json
+"scripts": {
+  "dev": "vite",         // Start dev server (hot reload)
+  "build": "vite build", // Create production bundle in /dist
+  "preview": "vite preview", // Preview the production build locally
+  "lint": "eslint . --ext .js",
+  "format": "prettier --write \"**/*.{js,css,md,json,cjs}\""
+}
+```
+
+**dependencies** = needed at runtime (user's browser needs them)
+**devDependencies** = only needed during development/build (Vite, ESLint, Prettier)
+
+**Viva Q: Why not include devDeps in deps?**
+They'd bloat the production bundle. Users don't need ESLint in their browser.
+
+---
+
+### [src/main.js](file:///d:/BB/news/src/main.js) — Application Entry Point
+```js
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import App from './App.js'
+import './styles.css'
+
+createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
+)
+```
+
+| Line | Explanation |
+|---|---|
+| `createRoot(...)` | React 18 API. Creates a root where React takes control |
+| `document.getElementById('root')` | Finds the `<div id="root">` in index.html |
+| `.render(...)` | Renders the React tree into that div |
+| `React.StrictMode` | Development-only wrapper. Helps catch bugs by double-invoking functions |
+| `BrowserRouter` | Enables HTML5 History API routing (clean URLs like `/article/123` instead of `/#/article/123`) |
+
+**Viva Q: Why `BrowserRouter` at the top?**  
+All routing hooks (`useNavigate`, `useParams`, `useLocation`) need a router context. Wrapping at the very top ensures every component has access.
+
+---
+
+### [src/theme.js](file:///d:/BB/news/src/theme.js) — Theme Factory
+```js
+import { createTheme } from '@mui/material/styles'
+
+export function getTheme(mode) {
+  return createTheme({
+    palette: {
+      mode: mode || 'light'   // 'light' or 'dark'
+    }
+  })
+}
+```
+`createTheme` generates a full MUI theme object with colors, spacing, typography. Setting `palette.mode` to `'dark'` flips ALL MUI components to dark automatically.
+
+**Viva Q: Why not just toggle a CSS class?**  
+Because MUI components have their own color system. Using `palette.mode` ensures every MUI component (buttons, cards, drawers) correctly switches colors.
+
+---
+
+### [src/styles.css](file:///d:/BB/news/src/styles.css) — Global Reset
+```css
+* { box-sizing: border-box; margin: 0; padding: 0; }
+```
+A basic reset so browsers don't add default margins/padding that break layouts.
+
+---
+
+### [src/App.js](file:///d:/BB/news/src/App.js) — Root Component (State Hub)
+
+```js
+export default function App() {
+  const [searchTerm, setSearchTerm] = useState('')
+  // Why here? searchTerm is shared between AppBarSearch and NewsList
+  
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  // Why here? AppBarSearch opens the drawer, FiltersDrawer needs to know if it's open
+  
+  const [sortBy, setSortBy] = useState('latest')
+  // Why here? FiltersDrawer sets it, NewsList reads it — they're siblings
+  
+  const [mode, setMode] = useState('light')
+  // Why here? ThemeProvider wraps everything — theme must be at the top
+  
+  const theme = useMemo(() => getTheme(mode), [mode])
+  // useMemo: recalculate ONLY when mode changes, not on every render
+```
+
+**Concept: "Lifting state up"**  
+When two sibling components need to share data, you move (lift) that state to their closest common parent. Here, [App.js](file:///d:/BB/news/src/App.js) is the common parent of [AppBarSearch](file:///d:/BB/news/src/components/AppBarSearch.js#6-65) and [NewsList](file:///d:/BB/news/src/features/news/NewsList.js#36-182), so `searchTerm` lives in [App.js](file:///d:/BB/news/src/App.js).
+
+```js
+function handleToggleMode() {
+  setMode(function(currentMode) {
+    return currentMode === 'light' ? 'dark' : 'light'
+    // Ternary operator: condition ? valueIfTrue : valueIfFalse
+  })
+}
+```
+The **functional updater form** of `setState` — you get the guaranteed latest value of the current state. Safer than `setMode(mode === 'light' ? 'dark' : 'light')` in async scenarios.
+
+---
+
+### [src/routes/AppRoutes.js](file:///d:/BB/news/src/routes/AppRoutes.js) — Router Configuration
+```js
+export default function AppRoutes(props) {
+  const searchTerm = props.searchTerm || ''
+  // props.searchTerm || '' means: use props.searchTerm if truthy, else use ''
+  // Guard against undefined/null/empty being passed in
+```
+
+```js
+return (
+  <Routes>
+    <Route path='/' element={<Home ... />} />
+    <Route path='/article/:id' element={<ArticleDetails />} />
+  </Routes>
+)
+```
+- [Routes](file:///d:/BB/news/src/routes/AppRoutes.js#6-29) = the container. Only renders the FIRST matching [Route](file:///d:/BB/news/src/routes/AppRoutes.js#6-29)
+- `path='/'` = matches the homepage URL
+- `path='/article/:id'` = matches any URL like `/article/anything`
+- `:id` = **URL parameter** — captured and accessible via `useParams()`
+
+**Viva Q: Why separate AppRoutes from App.js?**  
+Single responsibility principle. App.js manages global state. AppRoutes.js manages URL-to-component mapping.
+
+---
+
+### [src/routes/Home.js](file:///d:/BB/news/src/routes/Home.js) — Home Page
+```js
+const QUICK_TAGS = ['news', 'technology', 'ai', 'business', 'construction', 'finance']
+// const array at module level = defined ONCE, never re-created on render
+
+const SORT_LABELS = {
+  latest: 'Latest first',
+  oldest: 'Oldest first',
+  relevance: 'Most relevant'
+}
+// Object lookup is O(1) — faster and cleaner than if/else chains
+```
+
+```js
+{QUICK_TAGS.map(function(tag) {
+  return (
+    <Chip
+      key={tag}           // React needs a unique key for list items
+      label={tag}
+      color={searchTerm === tag ? 'primary' : 'default'}
+      // If this tag IS the current search, color it primary (blue/highlighted)
+      onClick={function() { onTagSelect(tag) }}
+    />
+  )
+})}
+```
+**`key` prop:** React uses this internally to track which list items changed. Without `key`, React re-renders ALL items even when only one changes. The `key` must be unique among siblings.
+
+---
+
+### [src/features/news/NewsList.js](file:///d:/BB/news/src/features/news/NewsList.js) — The Complex Heart
+
+This is the most sophisticated component. It has 3 `useEffect` hooks and 5 state variables.
+
+#### State Variables
+```js
+const [page, setPage] = useState(0)    // Current API page (0-indexed)
+const [items, setItems] = useState([]) // Accumulated article list
+const [loading, setLoading] = useState(false)  // Show spinner?
+const [error, setError] = useState('') // Error message
+const [hasMore, setHasMore] = useState(true) // More pages available?
+const loadMoreRef = useRef(null) // Reference to the sentinel div at bottom
+```
+
+#### Effect 1 — Reset when search/sort changes
+```js
+React.useEffect(() => {
+  setItems([])    // Clear old results
+  setPage(0)      // Go back to first page
+  setHasMore(true)
+}, [query, sortBy])
+// Runs whenever query or sortBy changes
+// Dependency array = [query, sortBy]
+```
+
+#### Effect 2 — Fetch data
+```js
+React.useEffect(() => {
+  let isActive = true  // ← CRITICAL: prevents memory leaks and race conditions
+
+  async function loadNews() {
+    setLoading(true)
+    setError('')
+
+    try {
+      const result = await newsService.search(query || 'news', page, { sortBy })
+      
+      if (!isActive) return  // Component unmounted? Stop here
+
+      setItems(function(previousItems) {
+        const merged = page === 0
+          ? result.items           // First page: replace everything
+          : previousItems.concat(result.items)  // Later pages: append
+        const uniqueItems = uniqueById(merged)  // Remove any duplicates
+        return sortItems(uniqueItems, sortBy)   // Apply client-side sort
+      })
+
+      setHasMore(result.hasMore)
+    } catch (err) {
+      if (!isActive) return
+      setError(err.message || 'Failed to load news')
+    } finally {
+      if (isActive) setLoading(false)
+    }
+  }
+
+  loadNews()
+
+  return () => { isActive = false }  // Cleanup: called on unmount
+}, [query, page, sortBy])
+```
+
+**Viva Q: Why `isActive`?**  
+React components can unmount (be removed from the DOM) while an async request is still in flight. If you call `setState` on an unmounted component, React throws a warning. Setting `isActive = false` in the cleanup prevents that.
+
+**Viva Q: What is `async/await`?**  
+A cleaner way to write Promises. `await` pauses execution until the Promise resolves. `async` marks the function as returning a Promise. It makes async code look synchronous.
+
+**Viva Q: What is `try/catch/finally`?**  
+- [try](file:///d:/BB/news/src/features/news/NewsList.js#109-115) = run this code
+- `catch` = if an error is thrown, handle it here
+- `finally` = ALWAYS runs whether success or failure (perfect for `setLoading(false)`)
+
+#### Effect 3 — Infinite Scroll via IntersectionObserver
+```js
+React.useEffect(() => {
+  const currentTarget = loadMoreRef.current
+  if (!currentTarget) return
+
+  const observer = new IntersectionObserver(
+    entries => {
+      const firstEntry = entries[0]
+      if (firstEntry && firstEntry.isIntersecting && hasMore && !loading) {
+        setPage(currentPage => currentPage + 1)  // Increment page → triggers Effect 2
+      }
+    },
+    { rootMargin: '500px 0px' }  // Trigger 500px BEFORE the element is visible
+  )
+
+  observer.observe(currentTarget)
+
+  return () => { observer.disconnect() }  // Cleanup
+}, [hasMore, loading])
+```
+
+**`IntersectionObserver`** = a browser API that tells you when an element enters/exits the viewport. The sentinel `<Box ref={loadMoreRef} sx={{ height: 20 }} />` at the bottom of the list acts as the trigger.
+
+**`rootMargin: '500px 0px'`** = start loading 500px BEFORE the user actually reaches the bottom. This makes the experience feel seamless — new articles are already loading before you see them.
+
+#### Helper Functions
+
+```js
+function uniqueById(list) {
+  const map = new Map()  // Map = key-value store, any type as key
+  list.forEach(function(item) {
+    if (!item || !item.id) return  // Skip invalid items
+    map.set(item.id, item)  // If same id, newer value overwrites older
+  })
+  return Array.from(map.values())  // Convert Map values back to array
+}
+```
+Using a `Map` de-duplicates in O(n) time — much faster than `filter()` with `findIndex()`.
+
+```js
+function sortItems(list, sortMode) {
+  const sorted = list.slice()  // .slice() with no args = shallow copy (don't mutate original!)
+  
+  if (sortMode === 'oldest') {
+    sorted.sort(function(a, b) {
+      return new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime()
+      // Ascending: smallest date first (oldest)
+    })
+  }
+  
+  if (sortMode === 'latest') {
+    sorted.sort(function(a, b) {
+      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+      // Descending: largest date first (newest)
+    })
+  }
+  // Note: 'relevance' sorting is handled by the API endpoint, not client-side
+  return sorted
+}
+```
+
+**Viva Q: Why `.slice()` before `.sort()`?**  
+`.sort()` mutates the original array. If you sort the React state array directly, you might cause unexpected bugs. Always copy first, then sort.
+
+---
+
+### [src/services/newsService.js](file:///d:/BB/news/src/services/newsService.js) — The API Layer
+
+#### Constants
+```js
+const API_BASE_URL = 'https://hn.algolia.com/api/v1'
+// ALL API calls go through this base URL
+
+const PAGE_SIZE = 12
+// 12 articles per page. Named constant = easy to change in one place
+```
+
+#### [buildUrl(path, params)](file:///d:/BB/news/src/services/newsService.js#15-28) — URL Builder
+```js
+function buildUrl(path, params = {}) {
+  // params = {} means: if no params argument passed, default to empty object
+  
+  const normalizedBase = API_BASE_URL.endsWith('/') 
+    ? API_BASE_URL 
+    : `${API_BASE_URL}/`
+  // Template literal: `` `${variable}` `` = string interpolation
+  
+  const normalizedPath = path.startsWith('/') ? path.slice(1) : path
+  // Remove leading slash if present (to avoid double slash)
+  
+  const url = new URL(normalizedPath, normalizedBase)
+  // URL constructor: second arg is the base. Handles joining correctly.
+  
+  Object.entries(params).forEach(function([key, value]) {
+    // Object.entries() converts {a: 1, b: 2} to [['a', 1], ['b', 2]]
+    // Destructuring: [key, value] unpacks each entry
+    
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value))
+      // .searchParams = the ?key=value part of the URL
+    }
+  })
+  
+  return url.toString()
+  // Returns: 'https://hn.algolia.com/api/v1/search_by_date?query=ai&tags=story&page=0&hitsPerPage=12'
+}
+```
+
+#### [fetchJson(path, params)](file:///d:/BB/news/src/services/newsService.js#29-38) — Generic HTTP Fetcher
+```js
+async function fetchJson(path, params) {
+  const response = await fetch(buildUrl(path, params))
+  // fetch() = browser's built-in HTTP client. Returns a Promise.
+  
+  if (!response.ok) {
+    // .ok = true if status code is 200-299
+    throw new Error('Failed to fetch news data')
+  }
+  
+  return response.json()
+  // .json() parses the response body as JSON. Also returns a Promise.
+}
+```
+
+**Viva Q: Why separate [buildUrl](file:///d:/BB/news/src/services/newsService.js#15-28) and [fetchJson](file:///d:/BB/news/src/services/newsService.js#29-38)?**  
+[buildUrl](file:///d:/BB/news/src/services/newsService.js#15-28) is a pure function — testable without the network. [fetchJson](file:///d:/BB/news/src/services/newsService.js#29-38) is reusable for any endpoint. Separation of concerns.
+
+#### HTML Entity Decoder
+```js
+function decodeHtmlEntities(text) {
+  return text
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&#x27;/gi, "'")
+    .replace(/&#x2F;/gi, '/')
+    .replace(/&nbsp;/gi, ' ')
+}
+```
+The API returns HTML-encoded text. `&amp;` is the HTML code for `&`. This function converts them back to readable characters.
+
+**Regex explained:** `/&amp;/gi`
+- `/` = start pattern
+- `&amp;` = the literal string to match
+- `/` = end pattern
+- `g` = global flag (replace ALL occurrences, not just first)
+- `i` = case-insensitive
+
+#### [cleanText(value)](file:///d:/BB/news/src/services/newsService.js#50-64) — HTML Stripper
+```js
+function cleanText(value) {
+  if (!value) return ''
+  
+  return decodeHtmlEntities(
+    String(value)
+      .replace(/<\s*br\s*\/?>/gi, '\n')  // <br> → newline
+      .replace(/<\/p>/gi, '\n\n')         // </p> → double newline
+      .replace(/<[^>]+>/g, ' ')           // Any other HTML tag → space
+      .replace(/\s+\n/g, '\n')            // Multiple spaces before newline → one newline
+      .replace(/\n{3,}/g, '\n\n')         // 3+ newlines → max 2
+      .replace(/[ \t]{2,}/g, ' ')         // Multiple spaces → single space
+      .trim()                              // Remove leading/trailing whitespace
+  )
+}
+```
+
+**`<[^>]+>`** — The HTML tag regex:
+- `<` = opening angle bracket
+- `[^>]+` = one or more characters that are NOT `>`
+- `>` = closing angle bracket
+- This matches any HTML tag like `<div>`, `<p class="x">`, `<strong>`
+
+#### [getTagFromText()](file:///d:/BB/news/src/services/newsService.js#65-78) — Auto-classification
+```js
+function getTagFromText(title, description, sourceTags) {
+  const haystack = `${title} ${description} ${(sourceTags || []).join(' ')}`.toLowerCase()
+  // Combine all text, lowercase it for case-insensitive matching
+  
+  if (/ai|artificial intelligence|llm|ml|machine learning|gpt/.test(haystack)) return 'ai'
+  // .test() returns true/false — does this regex match the haystack?
+  // | means OR: match 'ai' OR 'artificial intelligence' OR 'llm' etc.
+}
+```
+
+**Why this approach?** The API doesn't give us clean categories. We auto-classify by keyword matching. It's not perfect but it's fast and zero-cost.
+
+#### Tag-based SVG Thumbnails
+```js
+const TAG_COLORS = {
+  ai: ['#4527a0', '#283593'],  // [gradientStart, gradientEnd]
+  technology: ['#1565c0', '#00838f'],
+  ...
+}
+
+function getTagThumbnail(tag) {
+  const colors = TAG_COLORS[tag] || TAG_COLORS.general
+  const label = (tag || 'general').toUpperCase()
+  
+  const svg = [
+    "<svg ...>",
+    "<defs><linearGradient ...>",
+    `<stop offset='0%' stop-color='${colors[0]}'/>`,
+    `<stop offset='100%' stop-color='${colors[1]}'/>`,
+    ...
+  ].join('')
+  
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`
+  // data URI: embeds the SVG directly as a URL (no server needed)
+  // encodeURIComponent() escapes special characters so it's a valid URL
+}
+```
+
+**Viva Q: Why SVG data URIs instead of real images?**  
+The Hacker News API doesn't provide thumbnails. Rather than showing broken image icons, we generate beautiful gradient placeholder images on the fly using SVG, with no network request.
+
+#### Data Mappers
+```js
+function mapHitToArticle(hit) {
+  // 'hit' = Algolia's term for a search result
+  const title = cleanText(hit.title || hit.story_title || 'No title')
+  // Tries hit.title first, falls back to hit.story_title, falls back to 'No title'
+  
+  return {
+    id: hit.objectID,         // Algolia's unique ID field
+    title,                     // Shorthand: same as title: title
+    description,
+    url: hit.url || hit.story_url || '',
+    source: 'Hacker News',
+    author: hit.author || 'Unknown author',
+    publishedAt: hit.created_at || '',
+    tag,
+    thumbnailUrl: getTagThumbnail(tag)
+  }
+}
+```
+
+**Why two mappers ([mapHitToArticle](file:///d:/BB/news/src/services/newsService.js#99-116) and [mapItemToArticle](file:///d:/BB/news/src/services/newsService.js#117-134))?**  
+The Algolia search API (`/search`) returns "hits" with one field structure. The item detail API (`/items/:id`) returns a single object with a different structure. Both are normalized into the same shape so the rest of the app doesn't care which endpoint was called.
+
+#### The `newsService` Object
+```js
+const newsService = {
+  async search(query = 'news', page = 0, options = {}) {
+    const sortBy = options.sortBy || 'latest'
+    const endpoint = sortBy === 'relevance' ? '/search' : '/search_by_date'
+    // Algolia has TWO endpoints:
+    // /search = sorted by relevance (AI-powered ranking)
+    // /search_by_date = sorted by date (chronological)
+    
+    const data = await fetchJson(endpoint, {
+      query,
+      tags: 'story',     // Only fetch stories, not comments or jobs
+      page,
+      hitsPerPage: PAGE_SIZE
+    })
+    
+    return {
+      items: (data.hits || []).map(mapHitToArticle),
+      hasMore: page + 1 < (data.nbPages || 0)
+      // If current page +1 < total pages, there are more results
+    }
+  },
+  
+  async getItem(id) {
+    const data = await fetchJson(`/items/${id}`)
+    return mapItemToArticle(data)
+  }
+}
+
+export default newsService
+// Single export: one unified API client used throughout the app
+```
+
+---
+
+### [src/components/AppBarSearch.js](file:///d:/BB/news/src/components/AppBarSearch.js) — Top Navigation Bar
+
+```js
+const [value, setValue] = React.useState('')
+// Local state: the input's current text (unrelated to global searchTerm)
+
+const timeoutRef = React.useRef(null)
+// Stores the setTimeout ID so we can cancel it
+
+function handleChange(e) {
+  const nextValue = e.target.value  // e = Event object. e.target = the input element
+  setValue(nextValue)               // Update the input display immediately
+
+  if (timeoutRef.current) clearTimeout(timeoutRef.current)  // Cancel previous timer
+  
+  timeoutRef.current = setTimeout(() => {
+    onSearch(nextValue)   // Call parent's handler AFTER 350ms of no typing
+  }, 350)
+}
+```
+
+**This is called a "debounce" pattern.** Without it, every keystroke would fire an API call. With debounce, you wait for the user to stop typing for 350ms before searching. This drastically reduces API calls.
+
+```js
+React.useEffect(() => {
+  return () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+  }
+}, [])
+// Empty dependency array [] = runs ONCE on mount, cleans up on unmount
+// This prevents memory leaks if the component is removed while a timer is pending
+```
+
+---
+
+### [src/components/FiltersDrawer.js](file:///d:/BB/news/src/components/FiltersDrawer.js) — Sidebar Filter Panel
+```js
+<Drawer anchor='right' open={open} onClose={onClose}>
+```
+- `anchor='right'` = slides in from the right side
+- `open={open}` = controlled by parent's `filtersOpen` state
+- `onClose={onClose}` = called when user clicks backdrop or presses Escape
+
+```js
+<RadioGroup value={sortBy} onChange={handleSortChange}>
+  <FormControlLabel value='latest' control={<Radio />} label='Latest first' />
+  <FormControlLabel value='oldest' control={<Radio />} label='Oldest first' />
+  <FormControlLabel value='relevance' control={<Radio />} label='Most relevant' />
+</RadioGroup>
+```
+A **controlled component** — `value={sortBy}` means the selected radio button is always what `sortBy` says. The user's click fires `onChange`, which calls `onChangeSortBy`, which updates state in [App.js](file:///d:/BB/news/src/App.js), which flows back down as a new `sortBy` prop.
+
+---
+
+### [src/components/ThemeToggle.js](file:///d:/BB/news/src/components/ThemeToggle.js) — Dark/Light Switch
+```js
+{mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+// If dark mode: show sun icon (click to go light)
+// If light mode: show moon icon (click to go dark)
+```
+`Brightness7Icon` = full sun = "currently dark, click to get bright"
+`Brightness4Icon` = half moon = "currently light, click to get dark"
+
+`sx={{ position: 'fixed', right: 8, top: 80 }}` = always visible, floating in corner
+
+---
+
+### [src/components/ArticleCard.js](file:///d:/BB/news/src/components/ArticleCard.js) — News Card
+```js
+const featured = Boolean(props.featured)
+// Boolean() converts any truthy/falsy value to true/false explicitly
+// props.featured = index === 0 (true for first card, false for rest)
+```
+
+```js
+function openDetails() {
+  navigate(`/article/${article.id}`, { state: article })
+  // Pass the full article object as navigation state
+  // ArticleDetails.js reads this to show content INSTANTLY
+}
+
+function handleKeyDown(event) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()  // Prevent page scroll on Space
+    openDetails()
+  }
+}
+// Makes the card keyboard-accessible (role='button' + tabIndex={0} + onKeyDown)
+```
+
+```js
+function handleReadOriginalClick(event) {
+  event.stopPropagation()
+  // Without this: clicking "Read original" button would ALSO trigger openDetails()
+  // stopPropagation() prevents the event from bubbling up to the Card's onClick
+}
+```
+
+**Event Bubbling:** Click events travel UP the DOM tree. Card → Box → Article card's onClick would all fire. `stopPropagation()` stops the event at the button.
+
+```js
+<Typography
+  sx={{
+    overflow: 'hidden',
+    display: '-webkit-box',
+    WebkitBoxOrient: 'vertical',
+    WebkitLineClamp: featured ? 2 : 1  // Show 2 lines on featured, 1 on others
+  }}
+>
+```
+**CSS line clamping** — limits text to N lines and shows `...`. A CSS trick using flexbox internals.
+
+---
+
+### [src/routes/ArticleDetails.js](file:///d:/BB/news/src/routes/ArticleDetails.js) — Article Detail Page
+```js
+const { id } = useParams()
+// Destructuring: same as: const id = useParams().id
+
+const location = useLocation()
+
+const [article, setArticle] = useState(location.state || null)
+// If navigated from a card → location.state has the article data
+// If URL is typed directly → location.state is null, article is null
+```
+
+**Two-source strategy:**
+1. If user clicked a card → article data is instantly available from `location.state`
+2. In BOTH cases, the API call runs to get fresh/complete data
+3. If API fails but `location.state` exists, the cached data still shows
+
+```js
+if (loading && !article) {
+  return <CircularProgress />  // Spinner: loading AND no cached data
+}
+if (!article) {
+  return <Typography>Article not found</Typography>  // No data at all
+}
+// If article exists (from cache): show it immediately, no spinner
+```
+
+---
+
+### [src/utils/date.js](file:///d:/BB/news/src/utils/date.js) — Date Formatter
+```js
+export function formatDate(iso) {
+  // iso = ISO 8601 string like '2024-01-15T10:30:00.000Z'
+  
+  if (!iso) return ''
+  
+  const date = new Date(iso)
+  // new Date() parses the ISO string into a JavaScript Date object
+  
+  if (Number.isNaN(date.getTime())) return iso
+  // If parsing failed, getTime() returns NaN. Return raw string as fallback.
+  
+  return date.toLocaleDateString('en-US', {
+    day: 'numeric',    // 5
+    month: 'short',    // Jan
+    year: 'numeric'    // 2024
+  })
+  // Output: "Jan 5, 2024"
+}
+```
+
+---
+
+## 6. Complete Data Flow
+
+```
+User types 'ai' in search bar
+        ↓
+AppBarSearch.handleChange() fires
+Debounce waits 350ms
+        ↓
+onSearch('ai') called → App.js setSearchTerm('ai')
+        ↓
+React re-renders: searchTerm='ai' flows to AppRoutes → Home → NewsList
+        ↓
+NewsList Effect 1: query changed → setItems([]), setPage(0)
+        ↓
+NewsList Effect 2: page=0 changed → loadNews() called
+        ↓
+newsService.search('ai', 0, {sortBy:'latest'})
+        ↓
+buildUrl('/search_by_date', {query:'ai', tags:'story', page:0, hitsPerPage:12})
+        ↓
+fetch('https://hn.algolia.com/api/v1/search_by_date?query=ai&tags=story&page=0&hitsPerPage=12')
+        ↓
+JSON response → data.hits.map(mapHitToArticle)
+Each hit: cleanText() → getTagFromText() → getTagThumbnail()
+        ↓
+setItems([...12 articles]), setHasMore(true)
+React re-renders → Grid of ArticleCards displayed
+        ↓
+User scrolls down
+IntersectionObserver fires
+setPage(1)
+        ↓
+Effect 2 runs again with page=1
+Fetches next 12 articles
+setItems([...previous + 12 new, deduplicated, sorted])
+```
+
+---
+
+## 7. Viva Q&A — Best Answers
+
+**Q: Why React instead of plain HTML/JS?**  
+React manages UI updates automatically. When state changes, React figures out which parts of the DOM need updating (via virtual DOM diffing). In plain JS you'd have to manually `document.getElementById().innerHTML = ...` everywhere.
+
+**Q: Why Vite instead of Create React App?**  
+Vite uses native ES modules and esbuild. Dev server starts in <300ms vs CRA's 5-10 seconds. Hot Module Replacement (HMR) is near-instant. CRA is deprecated as of 2023.
+
+**Q: Why MUI instead of writing custom CSS?**  
+MUI provides accessible, consistent, responsive components. Accessibility (ARIA, keyboard navigation) is built-in. Theming (dark/light) is one line of code. Building a Button with ripple, hover states, focus rings from scratch takes hours.
+
+**Q: Why the Algolia Hacker News API?**  
+Free, no API key, no rate limiting (within reason), real news data, supports search and pagination out of the box.
+
+**Q: Why no Redux / Zustand?**  
+The app's state is simple: 4 values in [App.js](file:///d:/BB/news/src/App.js). Redux adds boilerplate (actions, reducers, store) that isn't justified until state becomes complex or needs to be shared across many deeply nested components.
+
+**Q: What is a "controlled component"?**  
+A form element whose value is controlled by React state, not the DOM. The input's `value` comes from state, and `onChange` updates that state. React is always the single source of truth.
+
+**Q: What is a "pure function"?**  
+A function that: (1) given the same inputs, always returns the same output, (2) has no side effects (doesn't modify external state). [cleanText()](file:///d:/BB/news/src/services/newsService.js#50-64), [buildUrl()](file:///d:/BB/news/src/services/newsService.js#15-28), [formatDate()](file:///d:/BB/news/src/utils/date.js#1-13), [uniqueById()](file:///d:/BB/news/src/features/news/NewsList.js#27-35) are all pure functions.
+
+**Q: How does infinite scroll work here?**  
+A tiny `<div>` (`loadMoreRef`) sits at the bottom of the article list. `IntersectionObserver` watches it. When it enters the viewport (or 500px before), we increment `page`. The page change triggers the fetch `useEffect`, which loads the next batch and appends it.
+
+**Q: What is event propagation / bubbling?**  
+When you click a button inside a card, the click event fires on the button, then bubbles up to the card, then the document. `stopPropagation()` breaks the bubble chain, preventing parent click handlers from firing.
+
+**Q: What is the `useRef` hook for?**  
+Two uses: (1) Access a DOM element directly without re-rendering (e.g., `loadMoreRef`). (2) Store a mutable value that survives renders but doesn't cause re-renders when changed (e.g., `timeoutRef` for debounce).
+
+**Q: Why `useMemo` for the theme?**  
+`createTheme()` is an expensive computation (builds a large object with colors, breakpoints, spacing etc.). Without `useMemo`, it would run on EVERY render. With `useMemo([mode])`, it only runs when `mode` changes — which is rare.

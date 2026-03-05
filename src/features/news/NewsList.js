@@ -3,9 +3,9 @@ import { Alert, Box, Button, Grid, Skeleton, Snackbar, Typography } from '@mui/m
 import ArticleCard from '../../components/ArticleCard.js'
 import newsService from '../../services/newsService.js'
 
-const SKELETON_ITEMS = [0, 1, 2, 3]
+const skeletonItems = [0, 1, 2, 3]
 
-function sortItems (list, sortMode) {
+function sortItems(list, sortMode) {
   const sorted = list.slice()
 
   if (sortMode === 'oldest') {
@@ -24,7 +24,7 @@ function sortItems (list, sortMode) {
   return sorted
 }
 
-function uniqueById (list) {
+function uniqueById(list) {
   const map = new Map()
   list.forEach(function (item) {
     if (!item || !item.id) return
@@ -33,7 +33,7 @@ function uniqueById (list) {
   return Array.from(map.values())
 }
 
-export default function NewsList (props) {
+export default function NewsList(props) {
   const query = props.query || ''
   const sortBy = props.sortBy || 'latest'
   const [page, setPage] = React.useState(0)
@@ -52,7 +52,7 @@ export default function NewsList (props) {
   React.useEffect(() => {
     let isActive = true
 
-    async function loadNews () {
+    async function loadNews() {
       setLoading(true)
       setError('')
 
@@ -106,7 +106,7 @@ export default function NewsList (props) {
     }
   }, [hasMore, loading])
 
-  function retry () {
+  function retry() {
     setError('')
     setItems([])
     setPage(0)
@@ -117,7 +117,7 @@ export default function NewsList (props) {
     <Box>
       {loading && items.length === 0 ? (
         <Grid container spacing={2}>
-          {SKELETON_ITEMS.map(function (index) {
+          {skeletonItems.map(function (index) {
             return (
               <Grid item xs={12} md={6} key={index}>
                 <Skeleton variant='rectangular' height={180} />

@@ -2,18 +2,18 @@ import React from 'react'
 import { Box, Button, Chip, Container, Grid, Typography } from '@mui/material'
 import NewsList from '../features/news/NewsList.js'
 
-const QUICK_TAGS = ['news', 'technology', 'ai', 'business', 'construction', 'finance']
-const SORT_LABELS = {
+const quickTags = ['news', 'technology', 'ai', 'business', 'construction', 'finance']
+const sortLabels = {
   latest: 'Latest first',
   oldest: 'Oldest first',
   relevance: 'Most relevant'
 }
 
-export default function Home (props) {
+export default function Home(props) {
   const searchTerm = props.searchTerm || ''
-  const onTagSelect = props.onTagSelect || function () {}
+  const onTagSelect = props.onTagSelect || function () { }
   const sortBy = props.sortBy || 'latest'
-  const onOpenFilters = props.onOpenFilters || function () {}
+  const onOpenFilters = props.onOpenFilters || function () { }
 
   return (
     <Container maxWidth='lg' sx={{ mt: 2 }}>
@@ -36,7 +36,7 @@ export default function Home (props) {
         }}
       >
         <Typography variant='body2' color='text.secondary'>
-          Sorting: {SORT_LABELS[sortBy] || SORT_LABELS.latest}
+          Sorting: {sortLabels[sortBy] || sortLabels.latest}
         </Typography>
         <Button size='small' onClick={onOpenFilters}>
           Open filters
@@ -44,7 +44,7 @@ export default function Home (props) {
       </Box>
 
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-        {QUICK_TAGS.map(function (tag) {
+        {quickTags.map(function (tag) {
           return (
             <Chip
               key={tag}
