@@ -14,7 +14,7 @@ const sortLabels = {
 
 export default function Home(props) {
     const mode = props.mode || 'light'
-    const onToggleMode = props.onToggleMode || function () { }
+    const onToggleMode = props.onToggleMode
 
     const [searchTerm, setSearchTerm] = useState('')
     const [filtersOpen, setFiltersOpen] = useState(false)

@@ -12,17 +12,17 @@ import {
   Divider
 } from '@mui/material'
 
-export default function FiltersDrawer (props) {
+export default function FiltersDrawer(props) {
   const open = Boolean(props.open)
-  const onClose = props.onClose || function () {}
+  const onClose = props.onClose
   const sortBy = props.sortBy || 'latest'
-  const onChangeSortBy = props.onChangeSortBy || function () {}
+  const onChangeSortBy = props.onChangeSortBy
 
-  function handleSortChange (event) {
+  function handleSortChange(event) {
     onChangeSortBy(event.target.value)
   }
 
-  function resetFilters () {
+  function resetFilters() {
     onChangeSortBy('latest')
   }
 

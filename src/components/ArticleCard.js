@@ -4,23 +4,23 @@ import ImageIcon from '@mui/icons-material/Image'
 import { useNavigate } from 'react-router-dom'
 import { formatDate } from '../utils/date.js'
 
-export default function ArticleCard (props) {
+export default function ArticleCard(props) {
   const article = props.article || {}
   const featured = Boolean(props.featured)
   const navigate = useNavigate()
 
-  function openDetails () {
+  function openDetails() {
     navigate(`/article/${article.id}`, { state: article })
   }
 
-  function handleKeyDown (event) {
+  function handleKeyDown(event) {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
       openDetails()
     }
   }
 
-  function handleReadOriginalClick (event) {
+  function handleReadOriginalClick(event) {
     event.stopPropagation()
   }
 

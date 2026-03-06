@@ -3,13 +3,13 @@ import { AppBar, Toolbar, Typography, InputBase, IconButton, Box } from '@mui/ma
 import SearchIcon from '@mui/icons-material/Search'
 import FilterListIcon from '@mui/icons-material/FilterList'
 
-export default function AppBarSearch (props) {
-  const onSearch = props.onSearch || function () {}
-  const onOpenFilters = props.onOpenFilters || function () {}
+export default function AppBarSearch(props) {
+  const onSearch = props.onSearch
+  const onOpenFilters = props.onOpenFilters
   const [value, setValue] = React.useState('')
   const timeoutRef = React.useRef(null)
 
-  function handleChange (e) {
+  function handleChange(e) {
     const nextValue = e.target.value
     setValue(nextValue)
 
